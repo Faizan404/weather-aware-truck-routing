@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".venv", "staticfiles"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "B905"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["config", "core", "planner", "risk", "routing", "weather", "scripts"]
+ignore_missing_imports = true
+warn_unused_ignores = true

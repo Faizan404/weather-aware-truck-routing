@@ -1,0 +1,25 @@
+# Local development: http://localhost:5173 (frontend) -> http://localhost:8765 (API)
+services:
+  backend:
+    build: ./backend
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_SECRET_KEY: dev-only-secret
+      DJANGO_ALLOWED_HOSTS: "*"
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8765"
+    ports: ["8765:8765"]
+    depends_on: [redis]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_PROXY_TARGET: http://backend:8765
+    ports: ["5173:5173"]
+    depends_on: [backend]
+
+  redis:
+    image: redis:7-alpine

@@ -1,0 +1,151 @@
+{
+  "levels": [
+    {
+      "key": "low",
+      "label": "Low",
+      "score": 0
+    },
+    {
+      "key": "moderate",
+      "label": "Moderate",
+      "score": 1
+    },
+    {
+      "key": "high",
+      "label": "High",
+      "score": 2
+    },
+    {
+      "key": "severe",
+      "label": "Severe",
+      "score": 3
+    },
+    {
+      "key": "no_travel",
+      "label": "No Travel",
+      "score": 4
+    },
+    {
+      "key": "unknown",
+      "label": "Unknown",
+      "score": null
+    }
+  ],
+  "conditions": {
+    "wind": [
+      {
+        "level": "low",
+        "min": null,
+        "min_inclusive": true,
+        "unit": "mph"
+      },
+      {
+        "level": "moderate",
+        "min": 25.0,
+        "min_inclusive": true,
+        "unit": "mph"
+      },
+      {
+        "level": "high",
+        "min": 35.0,
+        "min_inclusive": true,
+        "unit": "mph"
+      },
+      {
+        "level": "severe",
+        "min": 45.0,
+        "min_inclusive": true,
+        "unit": "mph"
+      },
+      {
+        "level": "no_travel",
+        "min": 55.0,
+        "min_inclusive": true,
+        "unit": "mph"
+      }
+    ],
+    "rain": [
+      {
+        "level": "low",
+        "min": null,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "moderate",
+        "min": 0.1,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "high",
+        "min": 0.25,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "severe",
+        "min": 0.5,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "no_travel",
+        "min": 1.0,
+        "min_inclusive": false,
+        "unit": "in/hr"
+      }
+    ],
+    "snow": [
+      {
+        "level": "low",
+        "min": null,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "moderate",
+        "min": 0.5,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "high",
+        "min": 1.0,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "severe",
+        "min": 2.0,
+        "min_inclusive": true,
+        "unit": "in/hr"
+      },
+      {
+        "level": "no_travel",
+        "min": 3.0,
+        "min_inclusive": false,
+        "unit": "in/hr"
+      }
+    ]
+  },
+  "load_rules": [
+    {
+      "wind_min_mph": 55,
+      "load_over_lbs": null,
+      "result": "no_travel"
+    },
+    {
+      "wind_min_mph": 45,
+      "wind_max_mph": 54,
+      "load_over_lbs": 30000,
+      "result": "no_travel"
+    },
+    {
+      "wind_min_mph": 35,
+      "wind_max_mph": 44,
+      "load_over_lbs": 40000,
+      "result": "severe"
+    }
+  ]
+}

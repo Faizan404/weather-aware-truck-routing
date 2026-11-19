@@ -1,0 +1,328 @@
+@import 'tailwindcss';
+
+/* Overpass (SIL OFL 1.1, see assets/fonts/OFL.txt), self-hosted so the CSP
+   needs no third-party font host. One variable file covers weights 400-800. */
+@font-face {
+  font-family: 'Overpass';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('./assets/fonts/overpass-latin-wght.woff2') format('woff2');
+}
+
+/* Dark mode follows data-theme on <html> (set from the theme switch). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ---------------------------------------------------------------------------
+   Tokens. Colour is reserved for risk; the interface itself is a cool, matte
+   slate. Clay depth carries meaning: raised = touchable surface,
+   pressed (inset) = input or current selection.
+--------------------------------------------------------------------------- */
+:root {
+  --base: #e4e9ef;
+  --surface: #eef2f6;
+  --surface-2: #f5f8fa;
+  --well: #e1e7ee;
+  --ink: #1b2633;
+  --muted: #5a6878;
+  --faint: #8592a1;
+  --line: #d3dbe4;
+  --accent: #1f5f7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #d8e8ef;
+
+  --risk-low: #3e9b6b;
+  --risk-moderate: #d6a21e;
+  --risk-high: #de7731;
+  --risk-severe: #cf4038;
+  --risk-no-travel: #7149a6;
+  --risk-unknown: #8d99a7;
+
+  --danger: #b4352e;
+  --danger-soft: #f6e1df;
+  --warn: #8a5a00;
+  --warn-soft: #f6ecd2;
+  --violet-soft: #ebe3f5;
+  --ok-soft: #dcefe4;
+
+  /* clay shadows */
+  --drop: 16 22 34;
+  --clay-raised:
+    0 14px 28px -14px rgb(var(--drop) / 0.28), 0 3px 8px -4px rgb(var(--drop) / 0.14),
+    inset 0 -3px 6px rgb(var(--drop) / 0.06), inset 0 2px 3px rgb(255 255 255 / 0.85);
+  --clay-raised-sm:
+    0 8px 16px -10px rgb(var(--drop) / 0.3), inset 0 -2px 4px rgb(var(--drop) / 0.06),
+    inset 0 1px 2px rgb(255 255 255 / 0.9);
+  --clay-pressed: inset 0 2px 6px rgb(var(--drop) / 0.14), inset 0 -1px 2px rgb(255 255 255 / 0.8);
+  --clay-accent:
+    0 12px 22px -12px rgb(31 95 122 / 0.75), inset 0 -3px 6px rgb(0 0 0 / 0.18),
+    inset 0 2px 3px rgb(255 255 255 / 0.25);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --base: #151b23;
+  --surface: #1e2631;
+  --surface-2: #242e3a;
+  --well: #19212b;
+  --ink: #e3e9f0;
+  --muted: #94a2b2;
+  --faint: #6b7889;
+  --line: #2e3947;
+  --accent: #6db3d1;
+  --accent-ink: #0f2430;
+  --accent-soft: #1d3644;
+
+  --risk-low: #4fb07f;
+  --risk-moderate: #e2b23a;
+  --risk-high: #ec8a45;
+  --risk-severe: #e0574f;
+  --risk-no-travel: #9a76d1;
+  --risk-unknown: #7d8998;
+
+  --danger: #f08a83;
+  --danger-soft: #3a2224;
+  --warn: #e8c46a;
+  --warn-soft: #34301f;
+  --violet-soft: #2c2440;
+  --ok-soft: #1f3329;
+
+  --drop: 0 0 0;
+  --clay-raised:
+    0 16px 30px -14px rgb(0 0 0 / 0.7), 0 3px 8px -4px rgb(0 0 0 / 0.4),
+    inset 0 -3px 6px rgb(0 0 0 / 0.25), inset 0 1px 2px rgb(255 255 255 / 0.06);
+  --clay-raised-sm:
+    0 8px 16px -10px rgb(0 0 0 / 0.75), inset 0 -2px 4px rgb(0 0 0 / 0.25),
+    inset 0 1px 1px rgb(255 255 255 / 0.06);
+  --clay-pressed: inset 0 2px 6px rgb(0 0 0 / 0.5), inset 0 -1px 1px rgb(255 255 255 / 0.04);
+  --clay-accent:
+    0 12px 22px -12px rgb(0 0 0 / 0.8), inset 0 -3px 6px rgb(0 0 0 / 0.2),
+    inset 0 2px 3px rgb(255 255 255 / 0.35);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: 'Overpass', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --color-base: var(--base);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-well: var(--well);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-violet-soft: var(--violet-soft);
+  --color-ok-soft: var(--ok-soft);
+  --color-risk-low: var(--risk-low);
+  --color-risk-moderate: var(--risk-moderate);
+  --color-risk-high: var(--risk-high);
+  --color-risk-severe: var(--risk-severe);
+  --color-risk-no-travel: var(--risk-no-travel);
+  --color-risk-unknown: var(--risk-unknown);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--base);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 0;
+}
+
+/* ---- Clay surfaces --------------------------------------------------------- */
+@layer components {
+  .clay {
+    background: var(--surface);
+    box-shadow: var(--clay-raised);
+  }
+  .clay-sm {
+    background: var(--surface);
+    box-shadow: var(--clay-raised-sm);
+  }
+  .clay-pressed {
+    background: var(--well);
+    box-shadow: var(--clay-pressed);
+  }
+  .clay-accent {
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: var(--clay-accent);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* One consistent, visible focus ring. */
+  .focus-ring:focus-visible,
+  .focus-ring:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ---- Range input (forecast slider) ---------------------------------------- */
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.range:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(var(--accent), var(--accent)) 0 / var(--fill, 0%) 100% no-repeat, var(--well);
+  box-shadow: var(--clay-pressed);
+}
+.range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--well);
+  box-shadow: var(--clay-pressed);
+}
+.range::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 2px solid var(--accent);
+  box-shadow: var(--clay-raised-sm);
+}
+.range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 2px solid var(--accent);
+  box-shadow: var(--clay-raised-sm);
+}
+.range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+/* ---- Checkpoint popup (rendered by MapLibre outside React) ------------------ */
+.maplibregl-popup-content {
+  background: var(--surface) !important;
+  color: var(--ink);
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  box-shadow: var(--clay-raised) !important;
+  font-family: var(--font-sans);
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--surface) !important;
+  border-bottom-color: var(--surface) !important;
+}
+.cp-popup {
+  font-size: 12.5px;
+  min-width: 210px;
+  line-height: 1.4;
+}
+.cp-popup .cp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cp-popup .cp-title {
+  font-weight: 700;
+  font-size: 13px;
+}
+.cp-popup .chip {
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.cp-popup .cp-eta {
+  margin: 3px 0 8px;
+  color: var(--muted);
+}
+.cp-popup table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cp-popup td {
+  padding: 3px 0;
+  border-top: 1px solid var(--line);
+}
+.cp-popup td:nth-child(2) {
+  text-align: right;
+  padding-right: 8px;
+  font-weight: 600;
+}
+.cp-popup td:last-child {
+  width: 10px;
+}
+.cp-popup .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+.cp-popup .reasons {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: var(--well);
+  color: var(--ink);
+  list-style: none;
+}
+
+/* ---- MapLibre controls in the clay style ------------------------------------ */
+.maplibregl-ctrl-group {
+  background: var(--surface) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--clay-raised-sm) !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line) !important;
+}
+[data-theme='dark'] .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.4);
+}
+.maplibregl-ctrl-attrib {
+  background: color-mix(in srgb, var(--surface) 85%, transparent) !important;
+  color: var(--muted);
+  border-radius: 10px;
+}
+.maplibregl-ctrl-attrib-inner {
+  color: var(--muted);
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--muted) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
