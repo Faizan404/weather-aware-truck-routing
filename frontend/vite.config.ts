@@ -22,7 +22,7 @@ function checkProductionApi(apiUrl: string | undefined) {
   if (!url) {
     throw new Error(
       'VITE_API_URL is not set. Production builds call the API directly, e.g. ' +
-        'VITE_API_URL=https://your-api.onrender.com/api/v1 npm run build (set it in Vercel for deploys).',
+        'VITE_API_URL=https://truck-routing-api-mo4g.onrender.com/api/v1 npm run build (set it in Vercel for deploys).',
     )
   }
   let origin: string

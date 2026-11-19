@@ -178,7 +178,7 @@ Or run everything with `docker compose up`.
 ```bash
 cd backend && .venv/bin/ruff check . && .venv/bin/mypy && .venv/bin/pytest
 cd frontend && npm run lint && npm run typecheck && npm test
-cd frontend && VITE_API_URL=https://your-api.onrender.com/api/v1 npm run build
+cd frontend && VITE_API_URL=https://truck-routing-api-mo4g.onrender.com/api/v1 npm run build
 ```
 
 CI (`.github/workflows/ci.yml`) runs all of these on every push and pull request, plus `manage.py check --deploy` with production settings and a Docker build of the API.
@@ -200,22 +200,25 @@ Create a Blueprint from `render.yaml` (root `backend`, Docker). Environment vari
 | `NUM_PROXIES` | `1` | Proxies in front of the app, for reading `X-Forwarded-For` |
 | `TRUST_CDN_IP_HEADERS` | `true` | Render runs behind Cloudflare, which sets `CF-Connecting-IP`. Leave `false` anywhere clients could send that header themselves |
 | `REPO_URL` | `https://github.com/Faizan404/weather-aware-truck-routing` | Contact URL in the User-Agent sent to OSRM, Photon and Nominatim |
+| `OPEN_METEO_URL` | `https://<frontend>.vercel.app/api` | Sends weather calls through the Vercel function `frontend/api/v1/forecast.js` (see below) |
 | `PLAN_DEADLINE_SECONDS` | `60` | Time budget for one plan or heatmap request; past it the API answers `503 upstream_timeout`. Keep it below gunicorn's `--timeout 90` |
 | `REDIS_URL` | *(optional)* | Shared cache; not needed for one instance |
 | `LOG_LEVEL` | *(optional)* `INFO` | `DEBUG` also logs which header the client IP came from. Every log line carries the request's `X-Request-ID` (echoed in responses) |
+
+**Why weather goes through Vercel:** Open-Meteo's free tier limits requests per IP address. Render's outgoing IP is shared with other apps, and its daily limit was already used up (every call returned 429 with a Retry-After of about 8.8 hours), so every checkpoint came back Unknown. A small Vercel function in the frontend project, `frontend/api/v1/forecast.js`, forwards the request unchanged to `https://api.open-meteo.com/v1/forecast` from Vercel's network and passes back the status, `Content-Type`, `Retry-After` and body. The backend already calls `${OPEN_METEO_URL}/v1/forecast`, so setting `OPEN_METEO_URL=https://<frontend>.vercel.app/api` on Render is the only change; no backend code changed. Leave it unset locally to call Open-Meteo directly.
 
 `/api/v1/health/` is the health check (GET or HEAD). It's answered before host validation and the HTTPS redirect, so a checker calling the container by IP over plain HTTP still gets a 200. It reports the deployed commit (`version`, from Render's `RENDER_GIT_COMMIT` or `GIT_SHA`) and `weather_budget_minute_left`.
 
 ### 2. App on Vercel
 
-Import the repo with root directory `frontend` (framework: Vite). Set **`VITE_API_URL=https://<your-api>.onrender.com/api/v1`**.
+Import the repo with root directory `frontend` (framework: Vite). Set **`VITE_API_URL=https://truck-routing-api-mo4g.onrender.com/api/v1`**.
 
-Before the first deploy, put the same API origin into `connect-src` of the Content-Security-Policy in `frontend/vercel.json`, replacing the `https://your-api.onrender.com` placeholder. The build fails with a clear message if `VITE_API_URL` is missing, or if the CSP doesn't allow its origin, so a misconfigured deploy never goes live with every API call blocked. `vercel.json` also sets `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`. The font is self-hosted, so the CSP allows no third-party font or script host.
+The Content-Security-Policy in `frontend/vercel.json` allows that API origin in `connect-src` (currently `https://truck-routing-api-mo4g.onrender.com`); if the API moves, update both. The build fails with a clear message if `VITE_API_URL` is missing, or if the CSP doesn't allow its origin, so a misconfigured deploy never goes live with every API call blocked. `vercel.json` also sets `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`. The font is self-hosted, so the CSP allows no third-party font or script host.
 
 ### 3. After every deploy
 
 ```bash
-scripts/smoke.sh https://<your-api>.onrender.com https://<your-app>.vercel.app
+scripts/smoke.sh https://truck-routing-api-mo4g.onrender.com https://<your-app>.vercel.app
 ```
 
 It checks health, risk rules, place search, a small plan (Dallas → Houston, every 50 mi) and its heatmap, and a CORS preflight from the app's origin. It exits non-zero on the first failure.
@@ -224,7 +227,7 @@ It checks health, risk rules, place search, a small plan (Dallas → Houston, ev
 
 Render's free plan stops the service after about 15 minutes without traffic, and the next request waits while it starts (up to about a minute). The app says so after 8 s: *"The server is starting up — this can take up to a minute on the free plan."* Plan and heatmap calls are allowed 90 s before the browser gives up.
 
-To avoid most cold starts, add an [UptimeRobot](https://uptimerobot.com) HTTP monitor on `https://<your-api>.onrender.com/api/v1/health/` **every 10 minutes**. The health check makes no upstream calls, so it costs nothing against the free API quotas. A keep-alive keeps the instance running around the clock, which uses free-plan instance hours.
+To avoid most cold starts, add an [UptimeRobot](https://uptimerobot.com) HTTP monitor on `https://truck-routing-api-mo4g.onrender.com/api/v1/health/` **every 10 minutes**. The health check makes no upstream calls, so it costs nothing against the free API quotas. A keep-alive keeps the instance running around the clock, which uses free-plan instance hours.
 
 ## Known limitations
 
@@ -234,5 +237,6 @@ To avoid most cold starts, add an [UptimeRobot](https://uptimerobot.com) HTTP mo
 - Runs as one instance by design: the weather budget, per-host rate limits and trip locks are in memory. Scaling out means moving them to Redis; `REDIS_URL` only shares the cache.
 - Planning is synchronous and bounded by the public OSRM server at 1 request/second (about 8–12 s for an uncached long trip). In production: self-hosted OSRM, or a background job with polling.
 - The weather budget (480 locations/min) is shared by all users. Long trips get coarser cells, and several long trips in the same minute can leave parts of the heatmap empty.
+- Weather depends on one free provider reached through one shared IP (now Vercel's, via `frontend/api/v1/forecast.js`). Cloud IPs are shared, so the per-IP free limit can still run out. The next step is a second weather provider to fall back on, or a paid Open-Meteo plan. The forwarding function is also public; restricting it to the API (e.g. with a shared secret header) would stop others from using its quota.
 - `/heatmap/` receives the route polylines back from the client; a `trip_id` would avoid re-sending them.
 - The US check is strict for heatmap polylines: a route that legally passes through Canada (e.g. Detroit → Buffalo via Ontario, or to Alaska) gets no heatmap.
