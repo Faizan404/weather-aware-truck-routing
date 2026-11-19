@@ -49,6 +49,8 @@ CACHE_SECONDS = 60 * 60
 QUOTA = RollingQuota([(60, 480), (3600, 4000), (86_400, 8000)])
 QUOTA_MAX_WAIT_SECONDS = 10.0
 
+OPEN_METEO_HOST = "api.open-meteo.com"
+
 # Open-Meteo serves today plus 15 days ahead.
 FORECAST_DAYS_AHEAD = 15
 
@@ -96,7 +98,11 @@ def _fetch_batch(cells: list[Cell], start: date, end: date) -> dict[tuple[Cell, 
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
     }
-    data = request_json("GET", f"{settings.OPEN_METEO_URL}/v1/forecast", params=params)
+    # Keyed by the real upstream, so a 429 pauses Open-Meteo calls even when
+    # OPEN_METEO_URL points at the Vercel forwarder.
+    data = request_json(
+        "GET", f"{settings.OPEN_METEO_URL}/v1/forecast", params=params, throttle_key=OPEN_METEO_HOST
+    )
     items = data if isinstance(data, list) else [data]
     out: dict[tuple[Cell, date], DaySeries] = {}
     for cell, item in zip(cells, items):

@@ -1,7 +1,12 @@
 """Place search for the origin/destination inputs. Photon (komoot) first,
 Nominatim as fallback; both free and keyless. Trips must start and end in the
 US, so results are limited to US places (submitted points are then checked
-locally by core.borders)."""
+locally by core.borders).
+
+In production both are reached through Vercel forwarders (PHOTON_URL /
+NOMINATIM_URL), because the API host's shared outgoing IP gets throttled.
+Calls are still spaced and cooled down per real service (throttle_key).
+"""
 
 from __future__ import annotations
 
@@ -16,11 +21,27 @@ from core.http import UpstreamError, request_json
 
 logger = logging.getLogger(__name__)
 
-CACHE_SECONDS = 24 * 3600
+PHOTON_HOST = "photon.komoot.io"
+NOMINATIM_HOST = "nominatim.openstreetmap.org"
+
+# Photon is the real answer: cache it a day. Nominatim is only the fallback
+# (no prefix search, so weaker results): cache briefly so Photon gets another
+# chance soon. Empty results are never cached.
+PHOTON_CACHE_SECONDS = 24 * 3600
+FALLBACK_CACHE_SECONDS = 10 * 60
+CACHE_PREFIX = "geo:v3:"
 LIMIT = 6
 # Ask for more than we show: non-US matches are filtered out afterwards.
 FETCH_LIMIT = 15
 US = "US"
+
+# Bias Photon towards the middle of the contiguous US at country scale.
+# zoom=4 matters: Photon's default bias radius is street level, which ranks
+# streets near the bias point (e.g. "Chicago Avenue" in Kansas) above the
+# city of Chicago.
+US_BIAS = {"lat": 39.8, "lon": -98.6, "location_bias_scale": 0.2, "zoom": 4}
+PLACE_KEYS = {"place", "boundary"}
+MIN_PLACE_RESULTS = 3
 
 # Photon result types shown as a hint so e.g. New York (state) and New York
 # (city) can be told apart in the suggestions.
@@ -49,13 +70,21 @@ def _photon(query: str) -> list[dict]:
     data = request_json(
         "GET",
         f"{settings.PHOTON_URL}/api",
-        params={"q": query, "limit": FETCH_LIMIT, "lang": "en"},
+        params={"q": query, "limit": FETCH_LIMIT, "lang": "en", **US_BIAS},
         retries=1,
+        throttle_key=PHOTON_HOST,
     )
+    features = [
+        f for f in data.get("features", [])
+        if f.get("properties", {}).get("countrycode", "").upper() == US
+    ]
+    # Trip ends are towns and cities: when there are enough of them, drop
+    # streets, stations, buildings and the like.
+    places = [f for f in features if f.get("properties", {}).get("osm_key") in PLACE_KEYS]
+    if len(places) >= MIN_PLACE_RESULTS:
+        features = places
     results = []
-    for feature in data.get("features", []):
-        if feature.get("properties", {}).get("countrycode", "").upper() != US:
-            continue
+    for feature in features:
         lon, lat = feature["geometry"]["coordinates"]
         results.append(
             {"label": photon_label(feature.get("properties", {}), query), "lat": lat, "lon": lon}
@@ -69,6 +98,7 @@ def _nominatim(query: str) -> list[dict]:
         f"{settings.NOMINATIM_URL}/search",
         params={"q": query, "format": "jsonv2", "limit": LIMIT, "countrycodes": "us"},
         retries=0,
+        throttle_key=NOMINATIM_HOST,
     )
     return [
         {"label": item["display_name"], "lat": float(item["lat"]), "lon": float(item["lon"])}
@@ -78,11 +108,11 @@ def _nominatim(query: str) -> list[dict]:
 
 def search(query: str) -> list[dict]:
     normalized = " ".join(query.lower().split())
-    key = "geo:v2:" + hashlib.sha1(normalized.encode()).hexdigest()
+    key = CACHE_PREFIX + hashlib.sha1(normalized.encode()).hexdigest()
     cached = cache.get(key)
-    if cached is not None:
+    if cached:
         return cached
-    for provider in (_photon, _nominatim):
+    for provider, ttl in ((_photon, PHOTON_CACHE_SECONDS), (_nominatim, FALLBACK_CACHE_SECONDS)):
         try:
             results = provider(normalized)
         except (UpstreamError, KeyError, ValueError, TypeError) as exc:
@@ -96,6 +126,7 @@ def search(query: str) -> list[dict]:
                 seen.add(r["label"])
                 unique.append(r)
         unique = unique[:LIMIT]
-        cache.set(key, unique, CACHE_SECONDS)
+        if unique:  # an empty answer may just be a bad moment upstream
+            cache.set(key, unique, ttl)
         return unique
     raise UpstreamUnavailable("Place search is unavailable. Please try again shortly.")

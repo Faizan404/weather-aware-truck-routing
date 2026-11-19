@@ -116,15 +116,14 @@ def _client(timeout: float) -> httpx.Client:
     )
 
 
-def _send(method: str, url: str, params: dict | None, json: Any) -> httpx.Response:
+def _send(method: str, url: str, params: dict | None, json: Any, key: str) -> httpx.Response:
     def call() -> httpx.Response:
         # Timeout taken when the call starts, after any wait for the host.
         with _client(deadline.call_timeout()) as client:
             return client.request(method, url, params=params, json=json)
 
-    host = urlsplit(url).hostname or ""
-    interval = HOST_MIN_INTERVAL.get(host)
-    return throttle.run(host, interval, call) if interval else call()
+    interval = HOST_MIN_INTERVAL.get(key)
+    return throttle.run(key, interval, call) if interval else call()
 
 
 def request_json(
@@ -135,21 +134,27 @@ def request_json(
     json: Any = None,
     retries: int = 2,
     backoff: float = 1.0,
+    throttle_key: str | None = None,
 ) -> Any:
     """Send a request and return decoded JSON.
 
     Raises UpstreamError for network failures or non-2xx responses. For 4xx
     responses the decoded body is attached so callers can tell "no route"
     apart from "service down".
+
+    `throttle_key` names the service whose limits apply, for the request
+    spacing and the 429 cool-down. It defaults to the URL's host; pass the
+    real upstream's host when calling it through a forwarder (e.g. a
+    *.vercel.app function), so its published limits still hold.
     """
-    host = urlsplit(url).hostname or ""
+    host = throttle_key or urlsplit(url).hostname or ""
     if _in_cooldown(host):
         raise UpstreamError(f"{url}: paused after rate limiting", 429)
     last_error: UpstreamError | None = None
     for attempt in range(retries + 1):
         deadline.check()
         try:
-            response = _send(method, url, params, json)
+            response = _send(method, url, params, json, host)
         except httpx.HTTPError as exc:
             deadline.check()  # a timeout cut short by the budget ends the request
             last_error = UpstreamError(f"{url}: {exc.__class__.__name__}")
